@@ -285,3 +285,4 @@ License v1.1), `disdat` (GPL ≥ 3), or any R package invoked through the bridge
 sdmbench downloads these on your behalf and never redistributes them; you are
 responsible for each upstream licence. It never bypasses an authentication or
 licence gate.
+"# sdmbench" 
