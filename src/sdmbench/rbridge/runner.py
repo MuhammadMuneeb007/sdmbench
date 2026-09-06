@@ -160,8 +160,14 @@ class RRunner:
             "tryCatch(as.character(utils::packageVersion(p)), error=function(e) NA_character_)); "
             "cat(paste(pkgs, res, sep='=', collapse='\\n'))"
         )
+        # NOTE: no "--args" separator here. With `Rscript -e <expr>`, everything
+        # after the expression is already passed through to the script, and a
+        # literal "--args" is picked up by commandArgs(trailingOnly=TRUE) as if
+        # it were a package name -- producing the baffling error
+        # "missing R package(s): --args". The separator is only needed for
+        # `R --no-save -e`, not for Rscript.
         out = subprocess.run(
-            [self.rscript, "-e", expr, "--args", *packages],
+            [self.rscript, "-e", expr, *packages],
             capture_output=True,
             text=True,
             timeout=300,

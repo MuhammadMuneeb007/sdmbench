@@ -28,6 +28,7 @@ from typing import Iterable, Iterator
 
 import pandas as pd
 
+from sdmbench.paths import ensure_dir
 from sdmbench.results import RESULT_COLUMNS, RunResult, results_to_dataframe
 
 __all__ = ["ResultStore", "job_id_for"]
@@ -68,8 +69,8 @@ class ResultStore:
         self.leakage_dir = self.run_dir / "leakage"
 
     def ensure(self) -> None:
-        self.results_dir.mkdir(parents=True, exist_ok=True)
-        self.leakage_dir.mkdir(parents=True, exist_ok=True)
+        ensure_dir(self.results_dir)
+        ensure_dir(self.leakage_dir)
 
     # ------------------------------------------------------------------ paths --
     def path_for(self, result: RunResult) -> Path:
@@ -89,7 +90,7 @@ class ResultStore:
         return path
 
     def write_leakage(self, job_id: str, report: dict) -> Path:
-        self.leakage_dir.mkdir(parents=True, exist_ok=True)
+        ensure_dir(self.leakage_dir)
         path = self.leakage_dir / f"{_slug(job_id)}.json"
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
@@ -137,7 +138,7 @@ class ResultStore:
     def write_parquet(self, path: str | Path | None = None) -> Path:
         """Consolidate every per-job result into a single Parquet table."""
         target = Path(path) if path else self.run_dir / "results.parquet"
-        target.parent.mkdir(parents=True, exist_ok=True)
+        ensure_dir(target.parent)
         frame = self.to_dataframe()
         frame.to_parquet(target, index=False)
         return target
@@ -145,7 +146,7 @@ class ResultStore:
     def write_csv(self, path: str | Path | None = None) -> Path:
         """CSV alongside the Parquet, for eyeballing without pyarrow."""
         target = Path(path) if path else self.run_dir / "results.csv"
-        target.parent.mkdir(parents=True, exist_ok=True)
+        ensure_dir(target.parent)
         self.to_dataframe().to_csv(target, index=False)
         return target
 

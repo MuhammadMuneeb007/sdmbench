@@ -14,6 +14,7 @@ __all__ = [
     "ConfigurationError",
     "DataError",
     "DataNotFetchedError",
+    "CacheError",
     "LeakageError",
     "SkippableError",
     "MissingDependencyError",
@@ -39,6 +40,15 @@ class DataError(SdmbenchError):
 
 class DataNotFetchedError(DataError):
     """The requested dataset has not been downloaded into the cache yet."""
+
+
+class CacheError(SdmbenchError):
+    """The sdmbench cache cannot be written to.
+
+    Usually a full or quota-limited filesystem -- the common case on HPC
+    clusters, where ``$HOME`` is small and the real space lives on scratch.
+    Carries the ``$SDMBENCH_CACHE`` fix in its message.
+    """
 
 
 class LeakageError(SdmbenchError):

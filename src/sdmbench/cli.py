@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Sequence
@@ -528,9 +529,32 @@ def cmd_env_check(args: argparse.Namespace) -> int:
     from sdmbench.rbridge.runner import RRunner
     from sdmbench.reproducibility.environment import capture_environment
 
+    from sdmbench.paths import cache_root, check_cache_writable, free_space_mb
+
     env = capture_environment()
     print(f"sdmbench {__version__}")
     print(f"python   {env['python_version']}  ({env['platform']})")
+    print()
+
+    # The cache is checked first: a full or unwritable cache is the single most
+    # common cause of a fetch failing minutes in, and on HPC clusters the
+    # default ($HOME) is usually the wrong volume.
+    root = cache_root()
+    writable, reason = check_cache_writable()
+    free = free_space_mb()
+    overridden = "SDMBENCH_CACHE" in os.environ
+    print("Cache")
+    print(f"  path       {root}")
+    print(f"  source     {'$SDMBENCH_CACHE' if overridden else 'platform default'}")
+    print(f"  writable   {'yes' if writable else 'NO -- ' + reason}")
+    if free is not None:
+        print(f"  free space {free / 1000:.1f} GB")
+    if not writable or (free is not None and free < 5_000):
+        print()
+        print("  ! The cache holds datasets, checkpoints and run outputs and needs real")
+        print("    space. Point it at a scratch or project filesystem, not $HOME:")
+        print("        export SDMBENCH_CACHE=/path/to/scratch/sdmbench")
+        print("    (add it to ~/.bashrc so it survives new sessions)")
     print()
     print("Core dependencies:")
     for name in ("numpy", "pandas", "scipy", "scikit-learn", "pyarrow", "pyyaml"):

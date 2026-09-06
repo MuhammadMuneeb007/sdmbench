@@ -30,47 +30,86 @@ classifiers = [
     "Topic :: Scientific/Engineering :: GIS",
 ]
 
-# The core stays deliberately small. Someone who only wants to run scikit-learn
-# models on a table must not be made to install torch, H2O and every R package.
+# `pip install sdmbench` installs everything needed to run the full benchmark:
+# the published baselines' Python side, all the boosting libraries, torch and
+# torch-geometric, TabPFN, the geospatial stack, explainability and plots.
+#
+# Two deliberate exclusions, both in the `automl` extra:
+#   * autogluon.tabular -- ~200 transitive packages, and it pins scikit-learn /
+#     numpy ranges that routinely conflict with a modern scientific stack.
+#   * h2o -- installs fine but needs a JVM to run, which pip cannot provide.
+# Putting either in the core would make `pip install sdmbench` fail for people
+# who never wanted AutoML. Install them with:  pip install "sdmbench[automl]"
+# or, more robustly:  python scripts/install_all.py --with-automl
+#
+# The R packages are installed by R, not pip:  Rscript scripts/setup_r_packages.R
 dependencies = [
+    # --- core: schema, splits, metrics, aggregation, reporting ---------------
     "numpy>=1.24",
     "pandas>=2.0",
     "scipy>=1.10",
     "scikit-learn>=1.3",
     "pyarrow>=12.0",
     "pyyaml>=6.0",
+
+    # --- gradient boosting ---------------------------------------------------
+    "xgboost>=2.0",
+    "lightgbm>=4.0",
+    "catboost>=1.2",
+
+    # --- deep learning, graph models, TabPFN ---------------------------------
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "torch-geometric>=2.4",
+    "tabpfn>=2.0",
+    "huggingface-hub>=0.20",
+
+    # --- geospatial ----------------------------------------------------------
+    "rasterio>=1.3",
+    "rioxarray>=0.15",
+    "xarray>=2023.1",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "pyproj>=3.5",
+
+    # --- explainability, plots, lightweight AutoML ---------------------------
+    "shap>=0.44",
+    "matplotlib>=3.7",
+    "flaml>=2.1",
 ]
 
 [project.optional-dependencies]
-# --- individual capability groups ------------------------------------------
-boosting = ["xgboost>=2.0", "lightgbm>=4.0", "catboost>=1.2"]
-ml = ["xgboost>=2.0", "lightgbm>=4.0", "catboost>=1.2"]
-deep = ["torch>=2.0", "torchvision>=0.15"]
-graph = ["torch>=2.0", "torch-geometric>=2.4"]
-tabpfn = ["tabpfn>=2.0", "huggingface-hub>=0.20", "torch>=2.0"]
-foundation = ["earthengine-api>=0.1.380", "transformers>=4.40", "huggingface-hub>=0.20"]
-raster = [
-    "rasterio>=1.3",
-    "rioxarray>=0.15",
-    "xarray>=2023.1",
-    "geopandas>=0.14",
-    "shapely>=2.0",
-    "pyproj>=3.5",
-]
-geo = [
-    "rasterio>=1.3",
-    "rioxarray>=0.15",
-    "xarray>=2023.1",
-    "geopandas>=0.14",
-    "shapely>=2.0",
-    "pyproj>=3.5",
-]
-automl = ["autogluon.tabular>=1.0", "flaml>=2.1", "h2o>=3.44"]
-explain = ["shap>=0.44", "captum>=0.7"]
-plots = ["matplotlib>=3.7"]
-# The `r` extra installs nothing itself: R packages are installed by R.
-# It exists so that `pip install "sdmbench[r]"` is a meaningful instruction and
-# so error messages can point at a real extra name.
+# Everything below is ALREADY in the core install (see `dependencies`). These
+# names are kept so that existing instructions, error messages and CI configs
+# that say `pip install "sdmbench[graph]"` keep working, and so a future slim
+# build can re-split them without breaking callers.
+boosting = []
+ml = []
+deep = []
+graph = []
+tabpfn = []
+raster = []
+geo = []
+explain = []
+plots = []
+
+# --- genuinely optional, and deliberately NOT in the core --------------------
+# autogluon pulls ~200 packages and pins scikit-learn/numpy ranges that conflict
+# with a modern stack; h2o needs a JVM that pip cannot install. Neither belongs
+# in a default install. `python scripts/install_all.py --with-automl` installs
+# them tolerantly and reports what actually worked.
+automl = ["autogluon.tabular>=1.0", "h2o>=3.44"]
+
+# Geospatial foundation models. earthengine-api additionally needs YOUR OWN
+# Google Earth Engine account; sdmbench never bypasses that gate.
+foundation = ["earthengine-api>=0.1.380", "transformers>=4.40"]
+
+# Captum is only needed for gradient attribution on torch models.
+attribution = ["captum>=0.7"]
+
+# The `r` extra installs nothing: R packages are installed by R. It exists so
+# `pip install "sdmbench[r]"` is a valid instruction and error messages can
+# point at a real extra name.
 r = []
 
 dev = [
@@ -81,15 +120,14 @@ dev = [
 ]
 docs = ["mkdocs>=1.5", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.24"]
 
+# Truly everything, AutoML and foundation models included. Expect a long
+# install and possible resolver conflicts from autogluon -- if it fails, use
+# `python scripts/install_all.py --with-automl`, which installs group by group
+# and tells you exactly what did and did not land.
 all = [
-    "sdmbench[boosting]",
-    "sdmbench[deep]",
-    "sdmbench[graph]",
-    "sdmbench[tabpfn]",
-    "sdmbench[raster]",
     "sdmbench[automl]",
-    "sdmbench[explain]",
-    "sdmbench[plots]",
+    "sdmbench[foundation]",
+    "sdmbench[attribution]",
 ]
 
 [project.urls]

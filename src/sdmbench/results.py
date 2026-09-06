@@ -233,8 +233,10 @@ class RunResult:
         """Write this result to ``path`` atomically."""
         from pathlib import Path
 
+        from sdmbench.paths import ensure_dir
+
         path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        ensure_dir(path.parent)
         tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
         tmp.replace(path)

@@ -77,21 +77,46 @@ published benchmark  →  reconstruct exact experiment  →  reproduce baselines
 ## Install
 
 ```bash
-pip install -e .                       # core: sklearn models, metrics, splits, reporting
-pip install -e ".[boosting]"           # XGBoost, LightGBM, CatBoost
-pip install -e ".[deep,graph]"         # torch, torch-geometric
-pip install -e ".[tabpfn]"             # TabPFN (Prior Labs License v1.1)
-pip install -e ".[raster]"             # rasterio, geopandas, pyproj
-pip install -e ".[all]"
+pip install -e .                       # everything: boosting, torch, graph, TabPFN,
+                                       # raster, SHAP, plots, FLAML
+pip install -e ".[automl]"             # + AutoGluon and H2O (see the note below)
 
 # The published MaxNet / BRT / GAM / Random Forest baselines run in R:
 Rscript scripts/setup_r_packages.R
 
+# IMPORTANT on a cluster: the cache needs real space, not a quota-limited $HOME
+export SDMBENCH_CACHE=/path/to/scratch/sdmbench
+
 sdmbench env check                     # what can and cannot run here
 ```
 
-Someone who only wants scikit-learn models on a table is never made to install
-torch, H2O and every R package.
+A plain `pip install` gets you the whole benchmark. **Two exclusions**, both in
+the `automl` extra and both deliberate: `autogluon.tabular` pulls ~200 packages
+and pins scikit-learn/numpy ranges that routinely conflict with a modern stack,
+and `h2o` needs a JVM that pip cannot provide. Putting either in the core would
+make `pip install sdmbench` fail for people who never wanted AutoML.
+
+If a fat install fails, use the group-by-group installer — it keeps going when
+one group breaks and tells you exactly what landed:
+
+```bash
+python scripts/install_all.py --check          # report state, install nothing
+python scripts/install_all.py                  # install group by group
+python scripts/install_all.py --with-automl    # + AutoGluon and H2O
+```
+
+### Cache location
+
+The cache holds datasets, model checkpoints and run outputs. On an HPC cluster
+the default (`$HOME/.cache`) is usually a small quota-limited volume, and a
+fetch will fail with `Disk quota exceeded`. Point it at scratch:
+
+```bash
+export SDMBENCH_CACHE=/scratch/$USER/sdmbench     # add to ~/.bashrc
+```
+
+`sdmbench env check` reports the cache path, whether it is writable, and how
+much space is free.
 
 ---
 

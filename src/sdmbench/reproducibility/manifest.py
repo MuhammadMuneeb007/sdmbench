@@ -132,8 +132,9 @@ class RunManifest:
 
     def write(self, directory: str | Path) -> Path:
         """Write (atomically) to ``<directory>/run_manifest.json``."""
-        directory = Path(directory)
-        directory.mkdir(parents=True, exist_ok=True)
+        from sdmbench.paths import ensure_dir
+
+        directory = ensure_dir(Path(directory))
         path = directory / MANIFEST_FILENAME
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
