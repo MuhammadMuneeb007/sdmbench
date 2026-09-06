@@ -1,0 +1,85 @@
+# sdmbench -- GPU conda environment (CUDA 12.1).
+#
+#   conda env create -f environment-gpu.yml
+#   conda activate sdmbench-gpu
+#   pip install -e ".[deep,graph,tabpfn,boosting,raster,explain]"
+#   Rscript scripts/setup_r_packages.R
+#
+# CUDA version
+# ------------
+# Pinned to CUDA 12.1, which matches the default PyTorch wheels at the time of
+# writing. Check `nvidia-smi` for the driver's supported CUDA version and adjust
+# `pytorch-cuda` if it differs -- a mismatch produces a torch that silently
+# falls back to CPU, which for TabPFN inference is roughly a 50x slowdown.
+#
+# torch-geometric
+# ---------------
+# Install AFTER torch, and match the build:
+#
+#   pip install torch-geometric
+#   pip install pyg-lib torch-scatter torch-sparse \
+#       -f https://data.pyg.org/whl/torch-2.3.0+cu121.html
+#
+# TabPFN
+# ------
+# The finetuned TabPFN-SDM checkpoints are ~43 MB each and are downloaded on
+# first use from Hugging Face under the Prior Labs License v1.1. sdmbench never
+# bypasses that licence; accept it on the model page first.
+
+name: sdmbench-gpu
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+
+dependencies:
+  - python=3.11
+
+  # --- core ---------------------------------------------------------------
+  - numpy>=1.24
+  - pandas>=2.0
+  - scipy>=1.10
+  - scikit-learn>=1.3
+  - pyarrow>=12.0
+  - pyyaml>=6.0
+
+  # --- GPU stack ----------------------------------------------------------
+  - pytorch>=2.3
+  - torchvision
+  - pytorch-cuda=12.1
+
+  # --- gradient boosting --------------------------------------------------
+  - xgboost>=2.0
+  - lightgbm>=4.0
+  - catboost>=1.2
+
+  # --- geospatial ---------------------------------------------------------
+  - rasterio>=1.3
+  - rioxarray>=0.15
+  - xarray>=2023.1
+  - geopandas>=0.14
+  - shapely>=2.0
+  - pyproj>=3.5
+  - gdal
+
+  # --- plots and explanation ----------------------------------------------
+  - matplotlib>=3.7
+  - shap>=0.44
+
+  # --- R ------------------------------------------------------------------
+  - r-base>=4.3
+  - r-jsonlite
+  - r-sf
+  - r-terra
+
+  # --- development ---------------------------------------------------------
+  - pytest>=7.4
+  - ruff>=0.4
+  - pip
+
+  - pip:
+      - torch-geometric>=2.4
+      - tabpfn>=2.0
+      - huggingface-hub>=0.20
+      - captum>=0.7
+      - -e .

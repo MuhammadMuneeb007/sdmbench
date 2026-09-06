@@ -1,0 +1,116 @@
+# The staged methodology benchmark -- the framework's central experiment.
+#
+#   sdmbench plan --config configs/examples/staged_ablation.yaml     # inspect
+#   sdmbench benchmark --config configs/examples/staged_ablation.yaml
+#
+# Answers one question per stage, carrying the winner forward, instead of
+# running the full factorial design. With 8 modality subsets x 4 scales x 6
+# representations x 6 fusion strategies x 5 graph strategies x 6 objectives x
+# 12 models, the factorial is ~415,000 configurations PER SPECIES -- absurd
+# computationally, and statistically worse: thousands of spurious "significant"
+# results by chance alone.
+#
+# READ THIS BEFORE INTERPRETING THE OUTPUT
+# ----------------------------------------
+# Staged (greedy) selection has two known costs, both reported in the plan:
+#
+#   1. It can miss interactions. A representation that only pays off under
+#      cross-attention is eliminated at stage 3, while fusion is still fixed at
+#      `concat`. Raise `top_k` to carry several candidates forward.
+#   2. Each stage takes a maximum over noisy estimates, so the carried-forward
+#      winner is optimistically biased. The FINAL number must come from a clean
+#      run of the selected methodology, and any superiority claim must rest on
+#      the paired tests in `sdmbench compare`, not on stage-winner status.
+
+benchmark:
+  name: tabpfn-sdm-2026
+
+experiment:
+  name: staged_methodology_v1
+  mode: staged
+
+  # One strong, fast model for stages 1-6, so that methodology differences are
+  # not masked by a weak learner or drowned in GPU time. Algorithms come last.
+  reference_model: xgboost
+  top_k: 2
+
+  stages:
+    # --- Stage 1: WHAT INFORMATION HELPS? ---------------------------------
+    - stage: information
+      modalities: [climate, terrain, soil, vegetation, human_pressure]
+      include_singles: true          # marginal value: what can it do alone?
+      include_leave_one_out: true    # unique contribution: what is lost without it?
+      include_all: true              # the ceiling
+      # A modality strong alone but useless leave-one-out is REDUNDANT with the
+      # others -- an argument against collecting it. Running both views is what
+      # makes that distinction visible.
+
+    # --- Stage 2: AT WHAT SCALE? -------------------------------------------
+    - stage: scale
+      scales: [250m, 1km, 5km, 25km]
+      include_multiscale: true
+      # Applies to raster modalities only. Single scales isolate the response;
+      # the multi-scale arm tests whether combining beats the best single scale.
+
+    # --- Stage 3: HOW SHOULD IT BE REPRESENTED? ----------------------------
+    - stage: representation
+      representations:
+        climate: [raw-tabular, standardized-tabular, pca, autoencoder, contrastive]
+        terrain: [patch-statistics, cnn, multiscale-cnn, vision-backbone]
+        vegetation: [temporal-summary, temporal-lstm, temporal-transformer]
+
+    # --- Stage 4: HOW SHOULD MODALITIES INTERACT? --------------------------
+    - stage: fusion
+      strategies: [concat, early, late, weighted, gated, cross-attention, moe]
+
+    # --- Stage 5: DOES SPATIAL STRUCTURE HELP? -----------------------------
+    - stage: spatial
+      strategies: [null, geographic-knn, environmental-knn, hybrid, patch-adjacency]
+      graph_model: graph-transformer
+      # CAVEAT recorded in the plan: graph arms use a graph model and the
+      # no-graph arm does not, so this stage confounds topology with
+      # architecture. Compare graph strategies against EACH OTHER to isolate
+      # the effect of topology.
+
+    # --- Stage 6: WHAT SHOULD THE MODEL LEARN? -----------------------------
+    - stage: objective
+      objectives: [weighted-bce, focal, pairwise-ranking, maxent, poisson, deepmaxent]
+      # Point-process objectives (maxent/poisson/deepmaxent) treat background
+      # points as QUADRATURE, not absences. They output an intensity, not a
+      # probability: rank metrics stay comparable, calibration slope does not.
+
+    # --- Stage 7: AND ONLY NOW, WHICH ALGORITHM? ---------------------------
+    - stage: model
+      models:
+        - maxnet
+        - random-forest
+        - brt
+        - gam
+        - knn
+        - xgboost
+        - lightgbm
+        - catboost
+        - tabpfn-sdm
+        - graph-transformer
+        - autogluon
+
+evaluation:
+  scenarios: [nonspatial, spatial]
+
+metrics:
+  - roc_auc
+  - pr_auc
+  - calibration_slope
+  - boyce
+
+automl:
+  time_limit_seconds: 600
+  cpu_limit: 8
+  gpu_limit: 0
+
+compute:
+  device: auto
+  workers: 8
+
+seed: 32639
+audit_leakage: true

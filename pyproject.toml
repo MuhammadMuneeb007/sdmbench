@@ -1,0 +1,155 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sdmbench"
+version = "0.1.0"
+description = "Reproducible benchmarking for species distribution modelling: information, representation, methodology, algorithm, validation."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "sdmbench contributors" }]
+keywords = [
+    "species-distribution-modelling",
+    "ecology",
+    "benchmark",
+    "reproducibility",
+    "spatial-machine-learning",
+    "presence-only",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+# The core stays deliberately small. Someone who only wants to run scikit-learn
+# models on a table must not be made to install torch, H2O and every R package.
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "scikit-learn>=1.3",
+    "pyarrow>=12.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# --- individual capability groups ------------------------------------------
+boosting = ["xgboost>=2.0", "lightgbm>=4.0", "catboost>=1.2"]
+ml = ["xgboost>=2.0", "lightgbm>=4.0", "catboost>=1.2"]
+deep = ["torch>=2.0", "torchvision>=0.15"]
+graph = ["torch>=2.0", "torch-geometric>=2.4"]
+tabpfn = ["tabpfn>=2.0", "huggingface-hub>=0.20", "torch>=2.0"]
+foundation = ["earthengine-api>=0.1.380", "transformers>=4.40", "huggingface-hub>=0.20"]
+raster = [
+    "rasterio>=1.3",
+    "rioxarray>=0.15",
+    "xarray>=2023.1",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "pyproj>=3.5",
+]
+geo = [
+    "rasterio>=1.3",
+    "rioxarray>=0.15",
+    "xarray>=2023.1",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "pyproj>=3.5",
+]
+automl = ["autogluon.tabular>=1.0", "flaml>=2.1", "h2o>=3.44"]
+explain = ["shap>=0.44", "captum>=0.7"]
+plots = ["matplotlib>=3.7"]
+# The `r` extra installs nothing itself: R packages are installed by R.
+# It exists so that `pip install "sdmbench[r]"` is a meaningful instruction and
+# so error messages can point at a real extra name.
+r = []
+
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.8",
+]
+docs = ["mkdocs>=1.5", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.24"]
+
+all = [
+    "sdmbench[boosting]",
+    "sdmbench[deep]",
+    "sdmbench[graph]",
+    "sdmbench[tabpfn]",
+    "sdmbench[raster]",
+    "sdmbench[automl]",
+    "sdmbench[explain]",
+    "sdmbench[plots]",
+]
+
+[project.urls]
+Homepage = "https://github.com/MuhammadMuneeb007/sdmbench"
+Repository = "https://github.com/MuhammadMuneeb007/sdmbench"
+Issues = "https://github.com/MuhammadMuneeb007/sdmbench/issues"
+
+[project.scripts]
+sdmbench = "sdmbench.cli:main"
+
+# Third-party packages extend sdmbench through these entry-point groups; see
+# sdmbench.core.registry.Registry.load_entry_points.
+[project.entry-points."sdmbench.datasets"]
+[project.entry-points."sdmbench.representations"]
+[project.entry-points."sdmbench.fusions"]
+[project.entry-points."sdmbench.graph_builders"]
+[project.entry-points."sdmbench.objectives"]
+[project.entry-points."sdmbench.models"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sdmbench"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/configs", "/docs", "/scripts", "/references", "/R"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: end-to-end tests that touch several subsystems",
+    "slow: tests taking more than a few seconds",
+    "gpu: requires a CUDA device",
+    "r: requires R and specific R packages",
+    "network: downloads data or model weights",
+    "tabpfn: requires the tabpfn package and its licensed weights",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",   # line length is handled by the formatter
+    "B008",   # function calls in defaults are used deliberately for factories
+    "N803",   # X, y are the conventional ML argument names
+    "N806",   # likewise for local variables
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802", "N803", "N806"]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+ignore_missing_imports = true
+# Optional backends are imported dynamically through sdmbench.optional.require,
+# so strict typing across them is not achievable or useful.
+disallow_untyped_defs = false

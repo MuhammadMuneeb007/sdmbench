@@ -1,0 +1,98 @@
+cff-version: 1.2.0
+title: "sdmbench: reproducible benchmarking for species distribution modelling"
+message: >-
+  If you use sdmbench, please cite both this software AND the benchmark you
+  reproduced. The benchmark's own citation is the scientifically important one;
+  sdmbench is the instrument, not the result.
+type: software
+authors:
+  - name: "sdmbench contributors"
+repository-code: "https://github.com/MuhammadMuneeb007/sdmbench"
+abstract: >-
+  A reproducible benchmarking framework for species distribution modelling,
+  ecological suitability modelling and presence-background classification. It
+  separates information, representation, methodology, algorithm and validation,
+  and forces every model through an identical published benchmark so that
+  comparisons are fair. Includes a strict reproduction of Dinnage & Warren
+  (2026), a leakage auditor, provenance tracking per protocol constant, and a
+  staged methodology benchmark over modalities, scales, representations, fusion
+  strategies, spatial structure and learning objectives.
+keywords:
+  - species distribution modelling
+  - ecology
+  - benchmark
+  - reproducibility
+  - spatial machine learning
+  - presence-only
+license: MIT
+version: 0.1.0
+
+references:
+  - type: article
+    title: >-
+      A Niche in the Machine: The Promise of AI Foundation Models for Species
+      Distribution Modeling
+    authors:
+      - family-names: Dinnage
+        given-names: Russell
+      - family-names: Warren
+        given-names: "Dan L."
+    year: 2026
+    journal: EcoEvoRxiv
+    doi: 10.32942/X2VQ10
+    notes: >-
+      The primary reproduction target. Cite this when reporting any result from
+      the tabpfn-sdm-2026 benchmark.
+
+  - type: article
+    title: >-
+      Presence-only and presence-absence data for comparing species distribution
+      modeling methods
+    authors:
+      - family-names: Elith
+        given-names: Jane
+      - family-names: Graham
+        given-names: "Catherine H."
+      - family-names: Valavi
+        given-names: Roozbeh
+    year: 2020
+    journal: "Biodiversity Informatics"
+    volume: 15
+    start: 69
+    end: 80
+    doi: 10.17161/bi.v15i2.13384
+    notes: >-
+      The disdat benchmark data. Cite this whenever disdat is used, which is
+      every run of the tabpfn-sdm-2026 benchmark.
+
+  - type: article
+    title: "Predictive performance of presence-only species distribution models"
+    authors:
+      - family-names: Valavi
+        given-names: Roozbeh
+      - family-names: Guillera-Arroita
+        given-names: Gurutzeta
+      - family-names: Lahoz-Monfort
+        given-names: "Jose J."
+      - family-names: Elith
+        given-names: Jane
+    year: 2022
+    journal: "Ecological Monographs"
+    doi: 10.1002/ecm.1486
+    notes: >-
+      The source of the baseline model configurations Dinnage & Warren followed.
+
+  - type: article
+    title: "Accurate predictions on small data with a tabular foundation model"
+    authors:
+      - family-names: Hollmann
+        given-names: Noah
+      - family-names: "Müller"
+        given-names: Samuel
+      - family-names: Hutter
+        given-names: Frank
+    year: 2025
+    journal: Nature
+    notes: >-
+      TabPFN. Cite when using any TabPFN adapter. Model weights are distributed
+      under the Prior Labs License v1.1.

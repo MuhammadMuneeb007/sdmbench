@@ -1,0 +1,57 @@
+# Leopard niche-change benchmark -- SCAFFOLD.
+#
+# Leedham et al. (2025), "Limited Niche Change After Dispersal From Africa by
+# Leopards (Panthera pardus) Hundreds of Thousands of Years Ago".
+#
+# STATUS: the recipe's structure is implemented; its DATA LOADER IS NOT.
+# `sdmbench reproduce leopard-leedham-2025` currently raises a clear error
+# telling you what to implement. See docs/adding_a_dataset.md.
+#
+# It is kept in the repository for two reasons:
+#   1. It proves the PaperBenchmark abstraction generalises beyond disdat --
+#      different data, different split scheme, different primary metric.
+#   2. Our existing leopard scripts should be REFACTORED INTO this recipe
+#      rather than copied in. The reusable parts (pseudo-absence sampling,
+#      spatial folds, the Boyce index) already live in sdmbench.splits and
+#      sdmbench.metrics; what remains is study-specific data loading.
+
+benchmark:
+  name: leopard-leedham-2025
+
+evaluation:
+  scenarios:
+    - spatial_cv
+  repeats: 10          # the study's 10 pseudo-absence replicates
+
+models:
+  published:
+    - random-forest-sklearn
+    - maxnet
+  classical:
+    - knn
+  boosting:
+    - xgboost
+
+metrics:
+  # The Continuous Boyce Index was the study's primary metric -- appropriate
+  # for presence-only evaluation, where "absence" is not observed.
+  - boyce
+  - roc_auc
+  - pr_auc
+
+extra:
+  # The five predictors of the original analysis.
+  predictors:
+    - bio04       # temperature seasonality
+    - bio05       # max temperature of the warmest month
+    - bio08       # mean temperature of the wettest quarter
+    - lai         # leaf area index
+    - rugosity    # terrain ruggedness
+  n_pseudoabsence_sets: 10
+  n_spatial_folds: 5
+
+compute:
+  device: auto
+  workers: 4
+
+seed: 32639

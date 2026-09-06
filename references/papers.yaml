@@ -1,0 +1,230 @@
+# Literature underpinning sdmbench.
+#
+# Structured so that a benchmark recipe can cite its sources programmatically,
+# and so a reader can tell which claims in the code are traceable to a
+# publication and which are our own design decisions.
+#
+# `verified` records whether WE read the source when implementing against it --
+# not whether the paper is correct. An entry with `verified: false` means the
+# implementation was written from a secondary description and needs checking.
+
+papers:
+
+  dinnage_warren_2026:
+    title: >
+      A Niche in the Machine: The Promise of AI Foundation Models for Species
+      Distribution Modeling
+    authors: [Russell Dinnage, Dan L. Warren]
+    year: 2026
+    venue: EcoEvoRxiv
+    doi: 10.32942/X2VQ10
+    url: https://ecoevorxiv.org/repository/view/11797/
+    code: https://github.com/rdinnager/TabPFN-SDM
+    code_status: NOT_PUBLIC
+    code_note: >
+      Cited in the paper (sec. 2.8) as the code repository, but it returned
+      HTTP 404 and does not appear in the owner's public repository list when
+      this package was written. sdmbench's implementation is built from the
+      paper's Methods section and the Hugging Face model card; constants that
+      depend on the repository are tagged UNVERIFIED in the provenance table.
+    models: [rdinnager/tabpfn-sdm-finetuned]
+    dataset: disdat
+    verified: true
+    verified_how: full preprint PDF (8 pages, complete Methods) read directly
+    implemented_as: sdmbench.benchmarks.tabpfn_sdm_2026
+    key_results:
+      nonspatial_roc_auc:
+        tabpfn_finetuned: 0.762
+        maxnet: 0.732
+        random_forest: 0.727
+        brt: 0.724
+        gam: 0.717
+        n_species: 226
+      spatial_roc_auc:
+        tabpfn_finetuned: 0.699
+        traditional_range: [0.656, 0.683]
+        n_species: 185
+      calibration_slope:
+        tabpfn_finetuned: 1.110
+      heldout_species_roc_auc: 0.763
+    protocol_summary: >
+      226 species across 6 regions from disdat. Preprocessing: zero-variance
+      removal, Yeo-Johnson, normalisation, fitted on training data alone.
+      Non-spatial uses all training data; spatial excludes training points
+      within 10 km of any test location, dropping ~41 species left
+      single-class. Metrics: ROC-AUC, PR-AUC, Miller's calibration slope
+      (yardstick). Seed 32639 throughout.
+
+  elith_2020_disdat:
+    title: >
+      Presence-only and Presence-absence Data for Comparing Species
+      Distribution Modeling Methods
+    authors: [Jane Elith, Catherine H. Graham, Roozbeh Valavi, et al.]
+    year: 2020
+    venue: Biodiversity Informatics 15(2), 69-80
+    doi: 10.17161/bi.v15i2.13384
+    software: https://CRAN.R-project.org/package=disdat
+    code: https://github.com/rvalavi/disdat
+    verified: true
+    verified_how: >
+      R package source (R/disdata.R, R/disOther.R), all man/*.Rd pages, and the
+      modelling vignette read directly from the GitHub repository.
+    implemented_as: sdmbench.data.disdat
+    notes: >
+      The source of every regional CRS, group code and categorical variable in
+      sdmbench. Note that the paper's predictor lists are SUBSETS of what
+      disPredictors() returns (AWT uses 8 of 13, NSW 12 of 13).
+
+  valavi_2022:
+    title: Predictive performance of presence-only species distribution models
+    authors: [Roozbeh Valavi, Gurutzeta Guillera-Arroita, Jose J. Lahoz-Monfort, Jane Elith]
+    year: 2022
+    venue: Ecological Monographs
+    doi: 10.1002/ecm.1486
+    verified: false
+    verified_note: >
+      Not read directly. Dinnage & Warren defer their per-region GAM formulas
+      and several baseline configurations to this paper, so those constants are
+      currently tagged UNVERIFIED. READING THIS IS THE HIGHEST-VALUE NEXT STEP
+      for improving reproduction fidelity.
+    provides: [gam_region_formulas, rf_downsampling_config, brt_config]
+
+  hollmann_2025_tabpfn:
+    title: Accurate Predictions on Small Data with a Tabular Foundation Model
+    authors: [Noah Hollmann, Samuel Muller, Lennart Purucker, et al.]
+    year: 2025
+    venue: Nature
+    code: https://github.com/PriorLabs/TabPFN
+    model: https://huggingface.co/Prior-Labs/TabPFN-v2-clf
+    license: Prior Labs License v1.1
+    verified: partial
+    verified_how: model card and package API surface only
+    implemented_as: sdmbench.models.tabpfn
+
+  boyce_2002:
+    title: Evaluating resource selection functions
+    authors: [Mark S. Boyce, Pierre R. Vernier, Scott E. Nielsen, Francis K. A. Schmiegelow]
+    year: 2002
+    venue: Ecological Modelling 157, 281-300
+    verified: false
+    implemented_as: sdmbench.metrics.ecological.continuous_boyce_index
+
+  hirzel_2006:
+    title: Evaluating the ability of habitat suitability models to predict species presences
+    authors: [Alexandre H. Hirzel, Gwenaelle Le Lay, Veronique Helfer, et al.]
+    year: 2006
+    venue: Ecological Modelling 199, 142-152
+    verified: false
+    verified_note: >
+      The continuous form of the Boyce index. sdmbench's implementation follows
+      ecospat::ecospat.boyce's defaults (which tidysdm wraps) rather than the
+      paper directly; parity tests against tidysdm::boyce_cont() are written
+      but NOT YET RUN.
+    implemented_as: sdmbench.metrics.ecological.continuous_boyce_index
+
+  miller_1991_calibration:
+    title: Validation of probabilistic predictions
+    authors: [Michael E. Miller, Siu L. Hui, William M. Tierney]
+    year: 1991
+    venue: Medical Decision Making 11, 158-166
+    verified: false
+    verified_note: >
+      The definition sdmbench implements is taken from Dinnage & Warren (2026)
+      sec. 2.6 verbatim: glm(observed ~ logit(predicted), binomial). This is
+      NOT the same as an OLS regression of outcomes on probabilities.
+    implemented_as: sdmbench.metrics.calibration.miller_calibration
+
+  renner_warton_2013:
+    title: >
+      Equivalence of MAXENT and Poisson point process models for species
+      distribution modeling in ecology
+    authors: [Ian W. Renner, David I. Warton]
+    year: 2013
+    venue: Biometrics 69, 274-281
+    verified: false
+    verified_note: >
+      The theoretical basis for treating background points as quadrature rather
+      than absences -- the distinction sdmbench's objective registry exists to
+      test.
+    implemented_as: sdmbench.objectives.pointprocess
+
+  warton_shepherd_2010:
+    title: >
+      Poisson point process models solve the "pseudo-absence problem" for
+      presence-only data in ecology
+    authors: [David I. Warton, Leah C. Shepherd]
+    year: 2010
+    venue: Annals of Applied Statistics 4, 1383-1402
+    verified: false
+    implemented_as: sdmbench.objectives.pointprocess
+
+  phillips_2006_maxent:
+    title: Maximum entropy modeling of species geographic distributions
+    authors: [Steven J. Phillips, Robert P. Anderson, Robert E. Schapire]
+    year: 2006
+    venue: Ecological Modelling 190, 231-259
+    verified: false
+    implemented_as: sdmbench.objectives.pointprocess.MaxEntObjective
+
+  leedham_2025_leopard:
+    title: >
+      Limited Niche Change After Dispersal From Africa by Leopards
+      (Panthera pardus) Hundreds of Thousands of Years Ago
+    authors: [Leedham et al.]
+    year: 2025
+    verified: false
+    verified_note: >
+      Reproduced separately by us before sdmbench existed. The recipe here is a
+      SCAFFOLD: its structure is implemented, its data loader is not. Published
+      reference values have NOT been encoded, so no reproduction claim can be
+      made from it yet.
+    implemented_as: sdmbench.benchmarks.leopard_2025
+    structure:
+      predictors: [bio04, bio05, bio08, lai, rugosity]
+      n_pseudoabsence_sets: 10
+      n_spatial_folds: 5
+      models: [random_forest, maxent]
+      primary_metric: continuous_boyce_index
+
+  deepmaxent_2026:
+    title: DeepMaxent (neural maximum-entropy species distribution modelling)
+    year: 2026
+    verified: false
+    verified_note: >
+      NOT LOCATED. sdmbench implements the normalised-Poisson objective from
+      the method's general description, NOT from verified upstream source. It
+      is registered with maturity="experimental" and
+      verified_against_upstream=False. DO NOT report a DeepMaxent reproduction
+      from this implementation until the upstream comparison in
+      docs/objectives.md has been run.
+    implemented_as: sdmbench.objectives.pointprocess.DeepMaxentObjective
+    todo: locate the paper and reference implementation; cross-check outputs
+
+  gnn_sdm_2025:
+    title: Graph neural networks for species distribution modelling
+    year: 2025
+    verified: false
+    verified_note: >
+      NOT LOCATED. The patch-graph formulation (ecologically homogeneous
+      landscape patches as nodes, adjacency as edges) is implemented in
+      sdmbench.graphs.builders.PatchAdjacencyBuilder, but the published
+      Self-Organizing Map patching step is SUBSTITUTED with k-means -- a
+      documented substitution, not a reproduction.
+    implemented_as: sdmbench.graphs.builders.PatchAdjacencyBuilder
+    todo: locate the paper and repository; implement SOM patching; add a recipe
+
+  lin_2017_focal:
+    title: Focal Loss for Dense Object Detection
+    authors: [Tsung-Yi Lin, Priya Goyal, Ross Girshick, Kaiming He, Piotr Dollar]
+    year: 2017
+    verified: false
+    implemented_as: sdmbench.objectives.classification.FocalLoss
+
+  gorishniy_2021_ft_transformer:
+    title: Revisiting Deep Learning Models for Tabular Data
+    authors: [Yury Gorishniy, Ivan Rubachev, Valentin Khrulkov, Artem Babenko]
+    year: 2021
+    venue: NeurIPS
+    verified: false
+    verified_note: sdmbench implements a simplified FT-Transformer, not the reference model.
+    implemented_as: sdmbench.models.neural.FTTransformerAdapter

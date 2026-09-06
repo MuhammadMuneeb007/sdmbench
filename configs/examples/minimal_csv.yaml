@@ -1,0 +1,61 @@
+# Example A -- the simplest useful experiment.
+#
+# Pure tabular: existing environmental columns, no rasters, no GPU, no R.
+# Runs today with only the core dependencies plus sdmbench[boosting].
+#
+#   sdmbench inspect my_species.csv                 # suggest a schema first
+#   sdmbench benchmark --config configs/examples/minimal_csv.yaml
+#
+# Or without a config at all:
+#
+#   sdmbench benchmark-csv my_species.csv --target presence --models standard
+
+benchmark:
+  name: csv
+
+dataset:
+  path: my_species.csv
+  target: presence
+  coordinates:
+    longitude: longitude
+    latitude: latitude
+  # Coordinates are used for the spatial split ONLY. To use them as predictors
+  # you must say so explicitly -- it is the single most common way to produce
+  # an impressive-looking SDM that has learned nothing but survey locations:
+  # include_coordinates: false
+
+models:
+  classical:
+    - logistic-regression
+    - knn
+    - random-forest-sklearn
+    - extra-trees
+  boosting:
+    - xgboost
+    - lightgbm
+  baseline:
+    - dummy        # sanity floor: ROC-AUC 0.5 by construction
+
+model_options:
+  knn:
+    n_neighbors: 5
+    metric: manhattan
+    weights: uniform
+
+evaluation:
+  # `spatial` needs coordinates; drop it for a table without them.
+  scenarios: [nonspatial, spatial]
+
+metrics:
+  - roc_auc
+  - pr_auc
+  - calibration_slope
+  - boyce
+  - brier
+
+compute:
+  device: cpu
+  workers: 4
+
+seed: 32639
+audit_leakage: true

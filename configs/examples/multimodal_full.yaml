@@ -1,0 +1,130 @@
+# Example F -- the full multimodal methodology.
+#
+# The most elaborate configuration the framework expresses. It is included as a
+# TARGET, not a recommendation: most of its components need optional
+# dependencies or credentials, and several have never been executed.
+#
+# NOTHING IN THIS FILE HAS BEEN RUN. Treat it as a specification of what the
+# architecture supports, and expect to prove each piece separately.
+#
+#   climate  tabular ------------------.
+#   terrain  multi-scale CNN ----------+
+#   soil     tabular ------------------+--> cross-attention --> geographic
+#   EO       AlphaEarth embedding -----+                        graph transformer
+#   vegetation temporal transformer ---'                              |
+#                                                                suitability
+#
+# Availability, honestly:
+#   climate/soil     -- available today from disdat or a user raster stack
+#   terrain          -- needs sdmbench[deep] + sdmbench[raster]
+#   vegetation       -- needs a time series; disdat has none
+#   earth_observation-- needs a Google Earth Engine account (see below)
+#   cross-attention  -- needs sdmbench[deep]
+#   graph            -- needs sdmbench[graph]
+
+experiment:
+  name: multimodal_sdm_v1
+  description: >
+    Full multimodal methodology: tabular climate and soil, multi-scale terrain
+    CNN, pretrained EO embeddings, temporal vegetation, fused by cross-attention
+    and refined over a geographic graph.
+
+dataset:
+  provider: disdat
+  species: all
+
+modalities:
+
+  climate:
+    provider: existing_dataset      # disdat already carries these columns
+    representation: raw-tabular
+
+  terrain:
+    provider: copernicus_dem        # SCAFFOLD: no downloader implemented yet
+    representation: multiscale-cnn
+    scales: [1km, 5km, 25km]
+    options:
+      shared_encoder: true          # one encoder across scales; fewer parameters
+      scale_fusion: attention       # learned weights say WHICH scale matters
+      embedding_dim: 64
+
+  soil:
+    provider: soilgrids             # SCAFFOLD
+    representation: raw-tabular
+
+  earth_observation:
+    provider: alphaearth            # requires YOUR Google Earth Engine account
+    representation: pretrained-embedding
+    options:
+      year: 2023
+      # sdmbench never holds or requests credentials. Run
+      #   earthengine authenticate
+      # first, or precompute the embeddings and switch to:
+      #   provider: cached
+      #   options: {path: embeddings/alphaearth_disdat.npz}
+
+  vegetation:
+    provider: modis                 # SCAFFOLD
+    representation: temporal-transformer
+    options:
+      latent_dim: 32
+      n_layers: 2
+
+fusion:
+  method: cross-attention
+  options:
+    hidden_dim: 64
+    n_heads: 4
+    epochs: 150
+  # Attention weights are reported as `attention_weights`, never as
+  # `importance`: attention indicates what the model attended to, and is not by
+  # itself an explanation.
+
+spatial:
+  method: geographic-knn
+  k: 8
+  # Coordinates build the TOPOLOGY. They are not node features -- that would
+  # let the model memorise where surveys happened rather than which
+  # environments the species occupies. Opt in explicitly if you want it:
+  #   include_coordinates: true
+
+model:
+  model: graph-transformer
+  options:
+    graph_mode: inductive      # separate train/test subgraphs; no message leakage
+    hidden_dim: 64
+    n_layers: 2
+    heads: 4
+    epochs: 300
+
+objective:
+  method: poisson
+  # Background points as quadrature for the intensity integral, not as
+  # absences. Output is an intensity: ROC-AUC and PR-AUC remain comparable,
+  # Miller's calibration slope does not.
+
+validation:
+  method: spatial
+  scenarios: [nonspatial, spatial]
+
+metrics:
+  - roc_auc
+  - pr_auc
+  - boyce
+  - brier
+  - calibration_slope
+
+explainability:
+  enabled: true
+  methods:
+    - modality_ablation      # what is LOST without each modality
+    - scale_ablation         # which scale carried the signal
+    - permutation_importance
+    - spatial_residuals      # where the model fails geographically
+
+compute:
+  device: auto
+  workers: 8
+
+seed: 32639
+audit_leakage: true

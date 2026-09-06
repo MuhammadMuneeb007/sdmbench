@@ -1,0 +1,64 @@
+# sdmbench -- CPU conda environment.
+#
+#   conda env create -f environment.yml      (or mamba/micromamba)
+#   conda activate sdmbench
+#   pip install -e .
+#   Rscript scripts/setup_r_packages.R       # optional: published R baselines
+#
+# Geospatial and R packages come from conda-forge because their compiled
+# dependencies (GDAL, GEOS, PROJ) are painful to install with pip.
+#
+# Deliberately NOT included here: torch, torch-geometric, tabpfn, and the
+# AutoML frameworks. They are large, hardware-specific, and most users do not
+# need them. Install with `pip install "sdmbench[deep]"` etc., or use
+# environment-gpu.yml.
+
+name: sdmbench
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+
+  # --- core ---------------------------------------------------------------
+  - numpy>=1.24
+  - pandas>=2.0
+  - scipy>=1.10
+  - scikit-learn>=1.3
+  - pyarrow>=12.0
+  - pyyaml>=6.0
+
+  # --- gradient boosting --------------------------------------------------
+  - xgboost>=2.0
+  - lightgbm>=4.0
+  - catboost>=1.2
+
+  # --- geospatial (sdmbench[raster]) --------------------------------------
+  - rasterio>=1.3
+  - rioxarray>=0.15
+  - xarray>=2023.1
+  - geopandas>=0.14
+  - shapely>=2.0
+  - pyproj>=3.5
+  - gdal
+
+  # --- plots and explanation ----------------------------------------------
+  - matplotlib>=3.7
+  - shap>=0.44
+
+  # --- R, for the published baselines -------------------------------------
+  # The R *packages* are installed by scripts/setup_r_packages.R, not here,
+  # so that the R side is reproducible from a single script.
+  - r-base>=4.3
+  - r-jsonlite
+  - r-sf
+  - r-terra
+
+  # --- development ---------------------------------------------------------
+  - pytest>=7.4
+  - pytest-cov>=4.1
+  - ruff>=0.4
+  - pip
+
+  - pip:
+      - -e .

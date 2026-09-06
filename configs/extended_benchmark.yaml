@@ -1,0 +1,86 @@
+# Mode B -- the extended benchmark.
+#
+# Identical data, splits, preprocessing and metrics to the published
+# reproduction, with additional algorithms so they can be compared fairly with
+# the published state of the art.
+#
+#   sdmbench benchmark --config configs/extended_benchmark.yaml
+#
+# This is the scientific contribution of the framework: not "we ran more
+# models", but "every model was forced through the same ecological benchmark
+# and the same evaluation rules, so the comparison means something".
+
+benchmark:
+  name: tabpfn-sdm-2026
+
+evaluation:
+  scenarios:
+    - nonspatial
+    - spatial
+
+models:
+  # The published reference point.
+  published:
+    - maxnet
+    - random-forest
+    - brt
+    - gam
+    - tabpfn-sdm
+
+  # Our KNN configuration. Included because it performed well in an earlier
+  # leopard analysis -- which is a reason to TEST it here, not evidence that it
+  # is good here. It is not a state-of-the-art method.
+  classical:
+    - knn
+    - logistic-regression
+    - extra-trees
+    - svm
+
+  boosting:
+    - xgboost
+    - lightgbm
+    - catboost
+
+  graph:
+    - gcn
+    - graph-transformer
+
+  # A sanity floor: any model that cannot beat this has learned nothing.
+  baseline:
+    - dummy
+
+metrics:
+  - roc_auc
+  - pr_auc
+  - calibration_slope
+  - boyce
+  - brier
+
+model_options:
+  # The leopard configuration: standardised predictors (supplied by the
+  # benchmark's preprocessing recipe), Manhattan distance, k = 5.
+  knn:
+    n_neighbors: 5
+    metric: manhattan
+    weights: uniform
+
+  # Coordinates are NOT features. They build the graph topology only.
+  graph-transformer:
+    graph_type: knn
+    k: 8
+    graph_mode: inductive   # training and test subgraphs are built separately
+    hidden_dim: 64
+    n_layers: 2
+    epochs: 200
+
+  gcn:
+    graph_type: knn
+    k: 8
+    graph_mode: inductive
+
+compute:
+  device: auto
+  workers: 4
+
+seed: 32639
+audit_leakage: true

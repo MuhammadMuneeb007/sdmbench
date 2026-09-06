@@ -1,0 +1,62 @@
+# Strict reproduction of Dinnage & Warren (2026),
+# "A Niche in the Machine: The Promise of AI Foundation Models for Species
+#  Distribution Modeling", EcoEvoRxiv, doi:10.32942/X2VQ10
+#
+#   sdmbench reproduce tabpfn-sdm-2026 --config configs/tabpfn_sdm_2026.yaml
+#
+# Every value below is taken from the paper's Methods section or the Hugging
+# Face model card for rdinnager/tabpfn-sdm-finetuned. Run
+#
+#   sdmbench provenance tabpfn-sdm-2026
+#
+# for the citation behind each constant, and for the list of constants that no
+# public source could confirm (the authors' repository was not public when this
+# recipe was written).
+
+benchmark:
+  name: tabpfn-sdm-2026
+
+evaluation:
+  # Both published scenarios. Non-spatial uses all 226 species; spatial drops
+  # the ~41 left single-class by the 10 km filter, leaving 185 (paper sec. 2.5).
+  scenarios:
+    - nonspatial
+    - spatial
+  # Restrict during development, e.g.:
+  # regions: [AWT]
+  # max_species: 5
+
+models:
+  # The four traditional baselines the paper compared against (sec. 2.2.1).
+  # These run in R because their published configurations are properties of
+  # specific R packages -- substituting sklearn equivalents changes the numbers.
+  published:
+    - maxnet          # maxnet, regmult=1, features lqpht, cloglog
+    - random-forest   # randomForest, 1000 trees, per-class downsampling
+    - brt             # dismo::gbm.step, lr 0.001, bag 0.75, 5-fold CV
+    - gam             # mgcv, thin-plate splines, REML
+
+  # The TabPFN configurations of sec. 2.2.2, using the paper's own names.
+  tabpfn:
+    - tabpfn-default  # n_estimators=8, temp=0.9, no balancing
+    - tabpfn-balanced # balance_probabilities + average_before_softmax
+    - tabpfn-ss       # subsample ensemble, K=16 (sec. 2.3)
+    - tabpfn-sdm      # finetuned checkpoint + subsample ensemble
+
+metrics:
+  # The three metrics of sec. 2.6, computed with yardstick in the original.
+  # calibration_slope is MILLER's slope: glm(observed ~ logit(predicted)).
+  - roc_auc
+  - pr_auc
+  - calibration_slope
+
+compute:
+  device: auto      # TabPFN is ~50x faster on a GPU
+  workers: 1        # R baselines parallelise poorly across processes
+
+# Sec. 2.2.1: "All models used a consistent random seed (32639)."
+# Confirmed independently by the model card's config.json.
+seed: 32639
+
+strict: false        # a single failing species must not end a 226-species run
+audit_leakage: true  # every job carries a PASS/FAIL leakage audit

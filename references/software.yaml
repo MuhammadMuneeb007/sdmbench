@@ -1,0 +1,256 @@
+# Software sdmbench builds on or integrates with.
+#
+# `integration` records what we actually did:
+#   implemented  -- working code, exercised at least once
+#   scaffold     -- code written against the documented API, NEVER EXECUTED
+#   planned      -- not written yet
+#
+# `license` matters: sdmbench downloads artefacts on the user's behalf but
+# never redistributes them, and never bypasses an authentication or licence
+# gate.
+
+python:
+
+  scikit-learn:
+    url: https://scikit-learn.org/
+    license: BSD-3-Clause
+    integration: implemented
+    used_for: [KNN, logistic regression, random forest, extra trees, SVM, naive Bayes,
+               gradient boosting, AdaBoost, PCA, ICA, k-means, metrics, cross-validation]
+    note: >
+      sdmbench never reimplements a learning algorithm. "Our KNN" is literally
+      sklearn.neighbors.KNeighborsClassifier, verifiable in twenty lines.
+
+  xgboost:
+    license: Apache-2.0
+    integration: implemented
+    extra: boosting
+  lightgbm:
+    license: MIT
+    integration: implemented
+    extra: boosting
+    note: consumes native pandas `category` columns, so categorical predictors
+          are not coerced into a spurious ordering.
+  catboost:
+    license: Apache-2.0
+    integration: implemented
+    extra: boosting
+
+  tabpfn:
+    url: https://github.com/PriorLabs/TabPFN
+    license: Prior Labs License v1.1
+    integration: scaffold
+    extra: tabpfn
+    note: >
+      Adapter written against the documented v2 API and the model card's
+      loading procedure (_initialize_model_variables, then
+      models_[0].load_state_dict). NEVER EXECUTED -- tabpfn was not installed.
+      If the installed package exposes a different internal layout the adapter
+      fails loudly rather than loading partial weights.
+
+  torch:
+    license: BSD-3-Clause
+    integration: scaffold
+    extra: deep
+    used_for: [MLP, residual MLP, wide-and-deep, FT-Transformer, autoencoders,
+               VAE, contrastive, temporal encoders, neural fusion]
+
+  torch-geometric:
+    license: MIT
+    integration: scaffold
+    extra: graph
+    used_for: [GCNConv, SAGEConv, GATv2Conv, TransformerConv]
+    note: stock PyG operators only; no hand-written graph convolutions.
+
+  rasterio / rioxarray / xarray / geopandas / shapely / pyproj:
+    license: [BSD-3-Clause, Apache-2.0, MIT]
+    integration: scaffold
+    extra: raster
+    note: all GIS work is delegated; sdmbench implements no GIS primitives.
+
+  autogluon.tabular:
+    license: Apache-2.0
+    integration: scaffold
+    extra: automl
+  flaml:
+    license: MIT
+    integration: scaffold
+    extra: automl
+  h2o:
+    license: Apache-2.0
+    integration: scaffold
+    extra: automl
+    note: needs a JVM; the adapter starts and shuts down the cluster per job so
+          a long benchmark does not leak JVM processes.
+
+  huggingface_hub:
+    license: Apache-2.0
+    integration: scaffold
+    extra: tabpfn
+    used_for: downloading the TabPFN-SDM checkpoints, with hash verification
+
+  shap:
+    license: MIT
+    integration: scaffold
+    extra: explain
+  captum:
+    license: BSD-3-Clause
+    integration: planned
+    extra: explain
+
+  earthengine-api:
+    license: Apache-2.0
+    integration: scaffold
+    extra: foundation
+    requires_auth: true
+    note: >
+      AlphaEarth embeddings are an Earth Engine ImageCollection, so retrieval
+      needs the USER'S OWN authenticated account. sdmbench never embeds,
+      requests or stores credentials, and never bypasses the gate.
+
+  transformers:
+    license: Apache-2.0
+    integration: scaffold
+    extra: foundation
+    used_for: Prithvi geospatial foundation model
+
+  terratorch:
+    license: Apache-2.0
+    integration: scaffold
+    extra: foundation
+    used_for: TerraMind embeddings
+    note: sdmbench loads the official implementation; it does not reimplement it.
+
+r:
+
+  disdat:
+    url: https://github.com/rvalavi/disdat
+    version_checked: 1.1-0
+    license: GPL (>= 3)
+    integration: implemented
+    used_for: the benchmark dataset
+    note: >
+      Data ships as .rds inside the package, unreadable from Python, so
+      rbridge/scripts/fetch_disdat.R exports it to long-format CSV and sdmbench
+      converts to Parquet. Source data is never modified.
+
+  maxnet:
+    license: MIT
+    integration: implemented
+    used_for: MaxEnt via elastic-net GLM (paper sec. 2.2.1)
+    config: regmult=1, classes="lqpht", cloglog output
+
+  dismo:
+    license: GPL (>= 3)
+    integration: implemented
+    used_for: [gbm.step for BRT, the Java MaxEnt interface]
+    note: >
+      dismo::maxent() additionally needs a JDK and maxent.jar placed by hand in
+      system.file("java", package="dismo") -- its licence forbids
+      redistribution, so sdmbench cannot install it and says so clearly.
+
+  gbm:
+    license: GPL-2
+    integration: implemented
+    used_for: the boosting engine under dismo::gbm.step
+
+  randomForest:
+    license: GPL (>= 2)
+    integration: implemented
+    used_for: random forest with per-class down-sampling
+    note: >
+      This is the PUBLISHED random forest and is a different model from
+      sklearn's. sdmbench reports them under different names
+      (`random-forest` vs `random-forest-sklearn`) so they cannot be confused.
+
+  mgcv:
+    license: GPL (>= 2)
+    integration: implemented
+    used_for: GAMs, penalised thin-plate regression splines, REML
+    caveat: >
+      The paper defers its per-region formulas to Valavi et al. (2022). Those
+      could not be verified, so the formula is reconstructed from the paper's
+      description and flagged UNVERIFIED. Pass formula= to override.
+
+  sf:
+    license: GPL-2 | MIT
+    integration: implemented
+    used_for: the reference 10 km spatial buffer, for parity testing
+    note: >
+      st_is_within_distance dispatches on CRS -- planar for projected, s2
+      great-circle for geographic. sdmbench's Python implementation reproduces
+      that dispatch and uses s2's earth radius (6371010 m) so the two agree.
+
+  yardstick:
+    license: MIT
+    integration: scaffold
+    used_for: reference ROC-AUC / PR-AUC for cross-language parity tests
+    note: >
+      yardstick integrates the PR curve trapezoidally; sklearn's
+      average_precision is step-wise. They can differ. The parity test pins the
+      size of the difference rather than pretending there is none.
+
+  tidysdm:
+    license: AGPL-3
+    integration: scaffold
+    used_for: boyce_cont(), the reference Continuous Boyce Index
+    note: parity tests written but NOT RUN.
+
+  terra:
+    license: GPL (>= 3)
+    integration: planned
+  blockCV:
+    license: GPL-3
+    integration: planned
+    used_for: spatial block cross-validation
+  spatialsample:
+    license: MIT
+    integration: planned
+    used_for: the paper's sec. 2.7 spatial holdout (v=5, first fold retained)
+  biomod2:
+    license: GPL-3
+    integration: planned
+  ENMeval:
+    license: GPL-3
+    integration: planned
+
+datasets:
+
+  disdat:
+    integration: implemented
+    access: R package (CRAN), or an OSF CSV archive
+    size: small (ships inside the R package)
+    species: 226
+    regions: [AWT, CAN, NSW, NZ, SA, SWI]
+
+  worldclim:
+    integration: planned
+    access: public HTTP
+  chelsa:
+    integration: planned
+    access: public HTTP
+  soilgrids:
+    integration: planned
+    access: public WCS / STAC
+  copernicus_dem:
+    integration: planned
+    access: public (AWS open data)
+  esa_worldcover:
+    integration: planned
+  modis:
+    integration: planned
+    access: NASA Earthdata (requires a free account)
+  alphaearth:
+    integration: scaffold
+    access: Google Earth Engine (requires a user account)
+    note: sdmbench detects an authenticated client and otherwise fails with
+          setup instructions. It never bypasses the gate.
+  geoplant:
+    integration: planned
+    access: UNVERIFIED -- licensing and availability not yet established
+    note: no downloader will be written until public availability is confirmed.
+  nceas_sdm_benchmarks:
+    integration: planned
+    note: >
+      disdat IS the NCEAS benchmark data (project 4980), already integrated.
+      Any additional NCEAS material would need separate licence checking.
