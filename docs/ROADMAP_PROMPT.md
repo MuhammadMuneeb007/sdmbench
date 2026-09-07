@@ -157,8 +157,15 @@ preprocessing order → weighting → the R model's own settings.
 
 ### 2.2 Execute the TabPFN path
 
-Never run. Requires `pip install -e ".[tabpfn]"` and accepting the Prior Labs
-License v1.1 on the model page.
+Never run. Requires accepting the Prior Labs License v1.1 on the model page.
+
+**Version tension, discovered 2026-09-07.** There is no `tabpfn` 2.5: the 2.x
+line stops at 2.2.1 and jumps to 6.x. The paper's "version 2.5" is the MODEL
+name (TabPFN-2.5). sdmbench pins `>=2.0,<3` because the released checkpoints are
+v2-based and the model card's loading procedure uses the v2 API. Reproducing
+`tabpfn-default` / `tabpfn-real` exactly as described may need a SECOND
+environment with a newer `tabpfn`. Tagged `tabpfn_package_version` = UNVERIFIED;
+the authors' repository would settle it immediately.
 
 The loading procedure follows the model card exactly:
 `_initialize_model_variables()` → `models_[0].load_state_dict(...)`. **If the
@@ -166,10 +173,6 @@ installed `tabpfn` exposes a different internal layout, the adapter raises
 rather than loading partial weights** — that is deliberate; do not "fix" it by
 guessing an alternative path, because partially loaded weights produce plausible
 but wrong results.
-
-Note the version tension: the paper used `tabpfn` **2.5**; the checkpoints
-declare base model `Prior-Labs/TabPFN-v2-clf` and the card's snippet targets the
-v2 API. Resolve empirically and record what worked.
 
 Verify the checkpoint sha256 matches the values in `CHECKPOINTS`:
 `e08fc4aa...` (non-spatial), `eafaf070...` (spatial).
@@ -319,10 +322,15 @@ more ecological signal than twenty years of bioclim variables?**
 ## 7. Suggested first session
 
 ```bash
-# 1. Environment
-pip install -e ".[dev,boosting]"
-Rscript scripts/setup_r_packages.R
-sdmbench env check
+# 1. Environment -- one command, Python and R together
+bash scripts/create_env.sh          # or --gpu
+micromamba activate sdmbench        # or: conda activate sdmbench
+
+# The cache needs real space. On HPC, $HOME usually does not have it.
+export SDMBENCH_CACHE=/path/to/scratch/sdmbench
+echo 'export SDMBENCH_CACHE=/path/to/scratch/sdmbench' >> ~/.bashrc
+
+sdmbench env check                  # cache writable? R packages found?
 
 # 2. Run the tests that have never been run
 pytest -m "not integration and not r and not gpu and not network" -v

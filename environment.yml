@@ -1,26 +1,44 @@
-# sdmbench -- CPU conda environment.
+# sdmbench -- complete CPU environment (Python + R in one go).
 #
-#   conda env create -f environment.yml      (or mamba/micromamba)
-#   conda activate sdmbench
+#   bash scripts/create_env.sh
+#
+# or by hand, fastest first:
+#
+#   micromamba env create -f environment.yml -y && micromamba activate sdmbench
+#   mamba env create -f environment.yml        && conda activate sdmbench
+#   conda env create -f environment.yml        && conda activate sdmbench
 #   pip install -e .
-#   Rscript scripts/setup_r_packages.R       # optional: published R baselines
+#   Rscript scripts/setup_r_packages.R        # installs `disdat` (not on conda-forge)
 #
-# Geospatial and R packages come from conda-forge because their compiled
-# dependencies (GDAL, GEOS, PROJ) are painful to install with pip.
+# Why conda-forge rather than pip for most of this
+# ------------------------------------------------
+# Two whole subsystems are painful or impossible with pip and trivial here:
 #
-# Deliberately NOT included here: torch, torch-geometric, tabpfn, and the
-# AutoML frameworks. They are large, hardware-specific, and most users do not
-# need them. Install with `pip install "sdmbench[deep]"` etc., or use
-# environment-gpu.yml.
+#   * The geospatial stack (rasterio, geopandas, pyproj) needs GDAL, GEOS and
+#     PROJ. conda-forge ships them prebuilt and ABI-consistent.
+#   * R and its packages. maxnet, dismo, gbm, randomForest, mgcv, sf, terra,
+#     yardstick and tidysdm are ALL on conda-forge, so the published baselines
+#     and the metric-parity tests come up with the environment rather than
+#     needing a separate compile-from-source pass.
+#
+# Only two things genuinely are not on conda-forge and come from pip below:
+# `tabpfn` (pinned to 2.x -- see the note there) and `disdat`, which R installs.
+#
+# Python 3.11 is pinned deliberately: it is the version every part of this
+# stack -- torch, torch-geometric, the GDAL chain, tabpfn 2.x -- has settled
+# wheels for. Newer Pythons work for the core but not reliably for all of it.
 
 name: sdmbench
+
 channels:
   - conda-forge
+  - nodefaults          # strict conda-forge: faster to solve, avoids ABI mixing
 
 dependencies:
   - python=3.11
+  - pip
 
-  # --- core ---------------------------------------------------------------
+  # --- core ----------------------------------------------------------------
   - numpy>=1.24
   - pandas>=2.0
   - scipy>=1.10
@@ -28,37 +46,68 @@ dependencies:
   - pyarrow>=12.0
   - pyyaml>=6.0
 
-  # --- gradient boosting --------------------------------------------------
+  # --- gradient boosting ---------------------------------------------------
   - xgboost>=2.0
   - lightgbm>=4.0
   - catboost>=1.2
 
-  # --- geospatial (sdmbench[raster]) --------------------------------------
+  # --- deep learning and graph models --------------------------------------
+  - pytorch>=2.0
+  - torchvision
+  - cpuonly                      # swap for environment-gpu.yml to get CUDA
+  - torch-geometric>=2.4         # GCNConv, SAGEConv, GATv2Conv, TransformerConv
+
+  # --- geospatial (this is the reason to use conda at all) -----------------
+  - gdal
   - rasterio>=1.3
   - rioxarray>=0.15
   - xarray>=2023.1
   - geopandas>=0.14
   - shapely>=2.0
   - pyproj>=3.5
-  - gdal
 
-  # --- plots and explanation ----------------------------------------------
-  - matplotlib>=3.7
+  # --- explainability, plots, lightweight AutoML ---------------------------
   - shap>=0.44
+  - matplotlib>=3.7
+  - flaml>=2.1
 
-  # --- R, for the published baselines -------------------------------------
-  # The R *packages* are installed by scripts/setup_r_packages.R, not here,
-  # so that the R side is reproducible from a single script.
+  # --- R: the PUBLISHED baselines ------------------------------------------
+  # These four are the paper's traditional models. Their published
+  # configurations are properties of these exact packages, so sdmbench calls
+  # them rather than substituting scikit-learn look-alikes.
   - r-base>=4.3
-  - r-jsonlite
-  - r-sf
+  - r-jsonlite                   # the R bridge protocol
+  - r-maxnet                     # MaxEnt via elastic-net GLM
+  - r-dismo                      # gbm.step() for BRT
+  - r-gbm                        # the boosting engine under gbm.step
+  - r-randomforest               # RF with per-class down-sampling
+  - r-mgcv                       # GAMs, penalised thin-plate splines
+
+  # --- R: spatial and metric parity ----------------------------------------
+  - r-sf                         # reference implementation of the 10 km buffer
   - r-terra
+  - r-yardstick                  # the paper's ROC-AUC / PR-AUC
+  - r-tidysdm                    # boyce_cont(): reference Boyce index
+  - r-rsample                    # stratified holdout (paper sec. 2.7)
+  - r-spatialsample              # spatial holdout (paper sec. 2.7)
 
   # --- development ---------------------------------------------------------
   - pytest>=7.4
   - pytest-cov>=4.1
   - ruff>=0.4
-  - pip
 
+  # --- pip-only: the two real gaps -----------------------------------------
   - pip:
+      # TabPFN is not on conda-forge in the 2.x line. Pinned to <3 on purpose:
+      # the released TabPFN-SDM checkpoints are v2-based and the model card's
+      # loading procedure uses the v2 API. There is no tabpfn 2.5 -- the
+      # paper's "version 2.5" is the MODEL name. See
+      # docs/tabpfn_sdm_2026_protocol.md.
+      - tabpfn>=2.0,<3
+      - huggingface-hub>=0.20
       - -e .
+
+# NOT included, deliberately:
+#   autogluon, h2o    -- see pyproject.toml; `pip install "sdmbench[automl]"`
+#   earthengine-api   -- needs YOUR OWN Google Earth Engine account
+#   disdat (R)        -- not on conda-forge; `Rscript scripts/setup_r_packages.R`

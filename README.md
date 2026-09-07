@@ -76,34 +76,70 @@ published benchmark  →  reconstruct exact experiment  →  reproduce baselines
 
 ## Install
 
+**Recommended — one command, Python *and* R together:**
+
 ```bash
-pip install -e .                       # everything: boosting, torch, graph, TabPFN,
-                                       # raster, SHAP, plots, FLAML
-pip install -e ".[automl]"             # + AutoGluon and H2O (see the note below)
-
-# The published MaxNet / BRT / GAM / Random Forest baselines run in R:
-Rscript scripts/setup_r_packages.R
-
-# IMPORTANT on a cluster: the cache needs real space, not a quota-limited $HOME
-export SDMBENCH_CACHE=/path/to/scratch/sdmbench
-
-sdmbench env check                     # what can and cannot run here
+bash scripts/create_env.sh          # CPU
+bash scripts/create_env.sh --gpu    # CUDA
 ```
 
-A plain `pip install` gets you the whole benchmark. **Two exclusions**, both in
-the `automl` extra and both deliberate: `autogluon.tabular` pulls ~200 packages
-and pins scikit-learn/numpy ranges that routinely conflict with a modern stack,
-and `h2o` needs a JVM that pip cannot provide. Putting either in the core would
-make `pip install sdmbench` fail for people who never wanted AutoML.
+It picks the fastest solver available (micromamba → mamba → conda, switching
+classic conda to the libmamba solver), creates the environment, installs the
+one R package conda-forge lacks, warns if `$HOME` is too small for the cache,
+and verifies with `sdmbench env check`. `--dry-run` prints the plan and changes
+nothing.
 
-If a fat install fails, use the group-by-group installer — it keeps going when
-one group breaks and tells you exactly what landed:
+Or by hand:
+
+```bash
+micromamba env create -f environment.yml -y && micromamba activate sdmbench
+pip install -e .
+Rscript scripts/setup_r_packages.R
+```
+
+### Why conda rather than pip
+
+Two subsystems are painful with pip and trivial with conda-forge:
+
+- **The geospatial stack** — rasterio, geopandas and pyproj need GDAL, GEOS and
+  PROJ. conda-forge ships them prebuilt and ABI-consistent.
+- **R** — `maxnet`, `dismo`, `gbm`, `randomForest`, `mgcv`, `sf`, `terra`,
+  `yardstick` and `tidysdm` are *all* on conda-forge, so the published baselines
+  and the metric-parity tests come up with the environment instead of needing a
+  separate compile-from-source pass.
+
+Only two things genuinely are not on conda-forge: `tabpfn` (pip, pinned to 2.x)
+and `disdat` (installed by R).
+
+### Pip-only route
+
+Works, but you must supply GDAL and R yourself:
+
+```bash
+pip install -e .                    # boosting, torch, graph, TabPFN, raster, SHAP, plots
+pip install -e ".[automl]"          # + AutoGluon and H2O
+Rscript scripts/setup_r_packages.R
+```
+
+**Two deliberate exclusions**, both in the `automl` extra: `autogluon.tabular`
+pulls ~200 packages and pins scikit-learn/numpy ranges that routinely conflict
+with a modern stack, and `h2o` needs a JVM that pip cannot provide. Either in
+the core would make `pip install sdmbench` fail for people who never wanted
+AutoML.
+
+If a fat install fails, the group-by-group installer keeps going when one group
+breaks and tells you exactly what landed:
 
 ```bash
 python scripts/install_all.py --check          # report state, install nothing
-python scripts/install_all.py                  # install group by group
-python scripts/install_all.py --with-automl    # + AutoGluon and H2O
+python scripts/install_all.py --with-automl
 ```
+
+> **TabPFN version.** Pinned to `>=2.0,<3` on purpose. The released TabPFN-SDM
+> checkpoints are v2-based and the model card's loading procedure uses the v2
+> API. There is no `tabpfn` 2.5 — the 2.x line stops at 2.2.1 and jumps to 6.x,
+> so the paper's "version 2.5" is the *model* name (TabPFN-2.5), not the package
+> version. An unpinned `>=2.0` installs 8.x, whose API will not match.
 
 ### Cache location
 

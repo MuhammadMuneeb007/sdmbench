@@ -1,41 +1,44 @@
-# sdmbench -- GPU conda environment (CUDA 12.1).
+# sdmbench -- complete GPU environment (CUDA).
 #
-#   conda env create -f environment-gpu.yml
-#   conda activate sdmbench-gpu
-#   pip install -e ".[deep,graph,tabpfn,boosting,raster,explain]"
+#   bash scripts/create_env.sh --gpu
+#
+# or by hand:
+#
+#   micromamba env create -f environment-gpu.yml -y
+#   micromamba activate sdmbench-gpu
+#   pip install -e .
 #   Rscript scripts/setup_r_packages.R
 #
-# CUDA version
-# ------------
-# Pinned to CUDA 12.1, which matches the default PyTorch wheels at the time of
-# writing. Check `nvidia-smi` for the driver's supported CUDA version and adjust
-# `pytorch-cuda` if it differs -- a mismatch produces a torch that silently
-# falls back to CPU, which for TabPFN inference is roughly a 50x slowdown.
+# Identical to environment.yml except that `cpuonly` is replaced by
+# `pytorch-gpu`, which pulls the CUDA build of PyTorch from conda-forge along
+# with a matching CUDA runtime. No manual CUDA version pinning: conda-forge
+# resolves it against the driver metapackage, which is what makes this less
+# fragile than the pip route.
 #
-# torch-geometric
-# ---------------
-# Install AFTER torch, and match the build:
+# Check afterwards:
 #
-#   pip install torch-geometric
-#   pip install pyg-lib torch-scatter torch-sparse \
-#       -f https://data.pyg.org/whl/torch-2.3.0+cu121.html
+#   python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"
+#   sdmbench env check
 #
-# TabPFN
-# ------
-# The finetuned TabPFN-SDM checkpoints are ~43 MB each and are downloaded on
-# first use from Hugging Face under the Prior Labs License v1.1. sdmbench never
-# bypasses that licence; accept it on the model page first.
+# If it reports False, the usual cause is a driver older than the CUDA runtime
+# conda selected. `nvidia-smi` shows the maximum CUDA the driver supports; pin
+# `cuda-version=<that>` below to constrain the solve.
+#
+# Who actually needs this: TabPFN inference (roughly 50x faster on GPU) and the
+# graph/neural models. The published R baselines are CPU-only, so a reproduction
+# of MaxNet/BRT/GAM/RF needs nothing here.
 
 name: sdmbench-gpu
+
 channels:
-  - pytorch
-  - nvidia
   - conda-forge
+  - nodefaults
 
 dependencies:
   - python=3.11
+  - pip
 
-  # --- core ---------------------------------------------------------------
+  # --- core ----------------------------------------------------------------
   - numpy>=1.24
   - pandas>=2.0
   - scipy>=1.10
@@ -43,43 +46,58 @@ dependencies:
   - pyarrow>=12.0
   - pyyaml>=6.0
 
-  # --- GPU stack ----------------------------------------------------------
-  - pytorch>=2.3
-  - torchvision
-  - pytorch-cuda=12.1
-
-  # --- gradient boosting --------------------------------------------------
+  # --- gradient boosting ---------------------------------------------------
   - xgboost>=2.0
   - lightgbm>=4.0
   - catboost>=1.2
 
-  # --- geospatial ---------------------------------------------------------
+  # --- deep learning and graph models (CUDA) -------------------------------
+  - pytorch>=2.0
+  - pytorch-gpu                  # the CUDA build; replaces `cpuonly`
+  - torchvision
+  - torch-geometric>=2.4
+  # Uncomment and set to the driver's maximum if the solve picks a CUDA runtime
+  # newer than your driver supports (see `nvidia-smi`):
+  # - cuda-version=12.1
+
+  # --- geospatial ----------------------------------------------------------
+  - gdal
   - rasterio>=1.3
   - rioxarray>=0.15
   - xarray>=2023.1
   - geopandas>=0.14
   - shapely>=2.0
   - pyproj>=3.5
-  - gdal
 
-  # --- plots and explanation ----------------------------------------------
-  - matplotlib>=3.7
+  # --- explainability, plots, lightweight AutoML ---------------------------
   - shap>=0.44
+  - matplotlib>=3.7
+  - flaml>=2.1
 
-  # --- R ------------------------------------------------------------------
+  # --- R: the PUBLISHED baselines ------------------------------------------
   - r-base>=4.3
   - r-jsonlite
+  - r-maxnet
+  - r-dismo
+  - r-gbm
+  - r-randomforest
+  - r-mgcv
+
+  # --- R: spatial and metric parity ----------------------------------------
   - r-sf
   - r-terra
+  - r-yardstick
+  - r-tidysdm
+  - r-rsample
+  - r-spatialsample
 
   # --- development ---------------------------------------------------------
   - pytest>=7.4
+  - pytest-cov>=4.1
   - ruff>=0.4
-  - pip
 
+  # --- pip-only ------------------------------------------------------------
   - pip:
-      - torch-geometric>=2.4
-      - tabpfn>=2.0
+      - tabpfn>=2.0,<3           # see environment.yml for why <3
       - huggingface-hub>=0.20
-      - captum>=0.7
       - -e .

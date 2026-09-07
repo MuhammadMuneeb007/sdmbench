@@ -61,7 +61,14 @@ dependencies = [
     "torch>=2.0",
     "torchvision>=0.15",
     "torch-geometric>=2.4",
-    "tabpfn>=2.0",
+    # Pinned to the 2.x line ON PURPOSE. The released TabPFN-SDM checkpoints
+    # declare base model Prior-Labs/TabPFN-v2-clf and the model card's loading
+    # snippet uses the v2 API (_initialize_model_variables, models_[0]).
+    # tabpfn has no 2.5 release -- 2.x stops at 2.2.1 and jumps to 6.x -- so the
+    # paper's "version 2.5" is the MODEL name (TabPFN-2.5), not the package
+    # version. An unpinned ">=2.0" resolves to 8.x, whose API will not match the
+    # documented checkpoint loading. See docs/tabpfn_sdm_2026_protocol.md.
+    "tabpfn>=2.0,<3",
     "huggingface-hub>=0.20",
 
     # --- geospatial ----------------------------------------------------------

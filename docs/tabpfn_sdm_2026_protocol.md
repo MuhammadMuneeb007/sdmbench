@@ -234,7 +234,34 @@ The paper's own names — none invented:
 | `tabpfn-ss` | subsample ensemble, K = 16 (§6 below) |
 | `tabpfn-sdm` | finetuned checkpoint + subsample ensemble |
 
-All used the Python `tabpfn` package (v2.5) via `reticulate`, on a local CUDA GPU.
+All used the Python `tabpfn` package via `reticulate`, on a local CUDA GPU.
+
+#### The "version 2.5" ambiguity
+
+The paper says the TabPFN implementations "used the Python `tabpfn` package
+(version 2.5)". **There is no `tabpfn` 2.5 release.** The published version
+history runs `2.0.0 … 2.2.1`, then jumps straight to `6.0.0` and on to `8.x`.
+
+The paper also writes: *"The most recent version, TabPFN-2.5, handles datasets
+with up to 50,000 samples and 2,000 features"* — and refers to a `v2_5_real`
+checkpoint. So **"2.5" is the MODEL name (TabPFN-2.5), not the package version.**
+
+This creates a real tension the reproduction has to resolve:
+
+| Variant | Needs |
+|---|---|
+| `tabpfn-default`, `tabpfn-real` | a package new enough to expose the TabPFN-2.5 model and the `v2_5_real` checkpoint (6.x/8.x) |
+| `tabpfn-sdm` (the headline result) | the **v2** API — the checkpoints declare base model `Prior-Labs/TabPFN-v2-clf`, and the model card's loading snippet uses `_initialize_model_variables()` then `models_[0].load_state_dict(...)` |
+
+sdmbench pins **`tabpfn>=2.0,<3`**, because the finetuned checkpoint is the
+paper's headline result and its loading procedure is the one that is actually
+documented. An unpinned `>=2.0` resolves to 8.x, whose API will not match — the
+adapter raises rather than loading partial weights, which is deliberate.
+
+Consequence: reproducing `tabpfn-default` / `tabpfn-real` exactly as described
+may need a *second* environment with a newer `tabpfn`. This is tagged
+`tabpfn_package_version` = `UNVERIFIED` and is one of the things the authors'
+repository would settle immediately.
 
 ---
 

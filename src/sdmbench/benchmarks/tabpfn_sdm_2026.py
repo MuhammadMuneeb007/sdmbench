@@ -478,6 +478,21 @@ class TabPFNSDM2026Benchmark(PaperBenchmark):
             ),
         )
         report.add(
+            "tabpfn_package_version",
+            Sourced(
+                ">=2.0,<3",
+                Provenance.UNVERIFIED,
+                f'{paper} sec. 2.2.2 says "tabpfn package (version 2.5)"',
+                note=(
+                    "No such release exists: the 2.x line stops at 2.2.1 and jumps to 6.x. "
+                    '"2.5" is the MODEL name (TabPFN-2.5), not the package version. sdmbench '
+                    "pins <3 because the released checkpoints are v2-based and the model "
+                    "card's loading procedure uses the v2 API; reproducing tabpfn-default / "
+                    "tabpfn-real as described may need a newer package in a second env."
+                ),
+            ),
+        )
+        report.add(
             "upstream_repository",
             Sourced(
                 "unavailable",
